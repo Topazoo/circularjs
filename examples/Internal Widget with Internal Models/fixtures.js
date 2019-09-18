@@ -1,7 +1,4 @@
 var Fixtures = {
-
-    modules: [],
-
     widgets: [ 
         {
             tag: 'hello',
@@ -24,8 +21,6 @@ var Fixtures = {
             ]
         },
     ],
-
-    routes: [],
 
     settings: {
         DOM_attach_point: 'body',
