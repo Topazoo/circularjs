@@ -1625,39 +1625,41 @@ var Bootstrapper =  {
         **/
 
         angular.element(document).ready(function () { 
+            (! Fixtures.modules) && (Fixtures.modules = []);
             Fixtures.widgets.map(widget => Bootstrapper.register_widget(widget));
-            angular.bootstrap(angular.element(document).find(Fixtures.settings.DOM_attach_point), Array.from(Fixtures.modules));    
+            angular.bootstrap(angular.element(document).find(Fixtures.settings.DOM_attach_point), Fixtures.modules);    
         });
     }(),
 
-    register_widget: function({name, models, directive_template, models_override, template_override, template_data_path}) {
+    register_widget: function({tag, template, models, api_template, api_models, directive_template}) {
         /**
             Register a widget that can be added to the DOM with a custom HTML tag. Widgets should be declared in a fixtures.js
             or by calling this function ( Bootstrapper.register_module() ).
             
             A widget is an HTML template and an optional set of models from the API that is fetched, compiled, and displayed when 
-            specified on the DOM using an HTML tag of the widget's name (e.g. <widget-name></widget-name>).
+            specified on the DOM (e.g. <widget-tag></widget-tag>).
             
-            --> name - The name of the widget template to register. *Becomes an HTML tag that can render the widget on the DOM*
-            --> models - A list of models (with optional filter and sort) to compile the template with, in the proper format for GET() (e.g. {'model': 'mymodel'} or 
+            --> tag - The HTML tag that renders the widget on the DOM
+            --> api_models - A list of models (with optional filter and sort) to compile the template with, in the proper format for GET() (e.g. {'model': 'mymodel'} or 
                         {'model': 'mymodel', 'filter': 'name:model_name'}). Optional.
             --> directive_template - The template to specify in the directive. Optional.
-            --> models_override - A list of objects to compile the widget with. Optional. *If models is also specified, the models fetched from the API are combined
+            --> models - A list of objects to compile the widget with. Optional. *If api_models is also specified, the models fetched from the API are combined
                                     with the passed models*
-            --> template_override - An HTML template (in string form) to use to render the widget. Used in place of fetching the template from the API. 
+            --> template - An HTML template (in string form) to use to render the widget. Used in place of fetching the template from the API. 
                                     Optional (must specify template_name if not used).
-            --> template_data_path - A dot-seperated path of keys to access the template value in the API response JSON.                                    
+            --> api_template - //TODO - DOC
         **/
 
         var Renderer = Bootstrapper.fetch_module_service('Renderer');
 
-        var new_widget_module = angular.module(name, []); // Widget module can be referenced as <<name>>-widget.
+        var new_widget_module = angular.module(tag, []); 
         
-        new_widget_module.directive(name, () => // Link the custom HTML tag to the widget renderer.
+        new_widget_module.directive(tag, () => // Link the custom HTML tag to the widget renderer.
             ({
+                scope: true,
                 restrict: 'E',
                 template: directive_template,
-                link: (scope, element) => Renderer.render_template(scope, element, name, models, models_override, template_override, template_data_path)
+                link: (scope, element) => Renderer.render_template(scope, element, template, models, api_template, api_models)
             })
         );
 
@@ -1689,82 +1691,92 @@ var Bootstrapper =  {
 
 // Library for rendering widgets.
 angular.module('Renderer_Library', []).service('Renderer', ['$compile', function ($compile) { 
-    this.render_template = function(scope, element, name, models, models_override, template_override, template_data_path) {
+    this.render_template = function(scope, element, template, models, api_template, api_models) {
         /**
             Fetch a template and models from the API. Compile the template with the fetched data and add it to 
             the passed DOM element.
            
             --> scope - The scope passed from the directive link function.
             --> element - The DOM element to add the template to. Passed from the directive link function.
-            --> models - A list of models to compile the template with, in the proper format for GET() (e.g. {'model': 'mymodel'} or 
+            --> api_models - A list of models to compile the template with, in the proper format for GET() (e.g. {'model': 'mymodel'} or 
                         {'model': 'mymodel', 'filter': 'name:model_name'}). Optional.
-            --> name - The name of the template to load from the API (excluding the extension).
-            --> models_override - A list of objects to compile the widget with. Optional. *If models is also specified, the models fetched from the API are combined
+            --> api_template - TODO - Doc
+            --> models - A list of objects to compile the widget with. Optional. *If api_models is also specified, the models fetched from the API are combined
                                   with the passed models*
-            --> template_override - An HTML template (in string form) to use to render the widget. Used in place of fetching the template from the API. 
-                                    Optional (must specify name if not used).
+            --> template - An HTML template (in string form) to use to render the widget. Used in place of fetching the template from the API. 
+                                    Optional (must specify api_template if not used).
             --> template_data_path - A dot-seperated path of keys to access the template value in the API response JSON.
         **/
 
         Renderer = this;
         API = Bootstrapper.fetch_module_service('API');
     
-        if(models && models.length > 0 && (model = models[0]) && (key = Renderer.pop_model_key(model))) // Since API.GET runs asynchronously, recurse to get all models                                                                     
-            API.GET({                                                                                   // from the API using API.GET's optional callback. 
-                url: Renderer.pop_attr(model, 'url'),
-                params: models.shift(), 
+        if(api_models && api_models.length > 0 && (model = api_models[0]) && (key = Renderer.pop_model_key(model)))                                                                      
+            API.GET({                                   // Since API.GET runs asynchronously, recurse to get all models                                              
+                url: Renderer.pop_attr(model, 'url'),   // from the API using API.GET's optional callback. 
+                params: api_models.shift(), 
                 callback: function(response) {
-                    scope[key] = response; 
-                    Renderer.render_template(scope, element, name, models, models_override, template_override, template_data_path); 
+                    Renderer.insert_model(scope, response, Renderer.pop_model_key(model)); 
+                    Renderer.render_template(scope, element, template, models, api_template, api_models); 
                 }, 
-                response_data_path: (model.data_path) ? model.data_path : Fixtures.settings.default_models_data_path 
+                response_data_path: (model.data_path) ? model.data_path : Fixtures.settings.default_model_data_path 
             });
 
-        else if (! template_override) // The final recursive call if loading the template from the API.
+        else if (! template)          // The final recursive call if loading the template from the API.
             API.GET({                 // Fetches the template after all models are retrieved, compiles them with the template.
-                params: {'model': 'widget', 'filter': `name:${name}`},
-                callback: (template) => Renderer.add_to_DOM(scope, element, template, models_override),
-                response_data_path: (template_data_path) ? template_data_path : Fixtures.settings.default_template_data_path
+                url: (api_template.url) ? api_template.url : Fixtures.settings.default_template_url,
+                params: (api_template.params) ? api_template.params : Fixtures.settings.default_template_params,
+                callback: (template) => Renderer.add_to_DOM(scope, element, template, models),
+                response_data_path: (api_template.data_path) ? api_template.data_path : Fixtures.settings.default_template_data_path,
             });
 
         else                          // The final recursive call if loading the template directly (as a string).
-            Renderer.add_to_DOM(scope, element, template_override, models_override);
+            Renderer.add_to_DOM(scope, element, template, models);
     };
 
-    this.splice_models = function(scope, models_override) {
+    this.splice_models = (scope, models) => 
+        models && models.forEach(model => Renderer.insert_model(scope, model))
         /**
             Combine passed objects with objects fetched from the API as neatly as possible.
-            If the passed objects have a <<model>> attribute, they will be stored by that key
+            If the passed objects have a 'scope_key' or 'model' attribute, they will be stored by that key
             in the scope the template is compiled with (e.g. {'model': 'extra'} would be 
             referenced as {{ extra }} on the DOM). Multiple models of the same name are stored as
             a list. 
-            
-            *The default key is +models ( {{ +models }} on the DOM )*
            
             --> scope - The scope containing the models loaded from the API.
-            --> models_override - A list of objects to add to the scope.
+            --> models - A list of objects to add to the scope.
         **/
 
-        models_override && models_override.forEach(model => {
-            model_name = Renderer.pop_model_key(model);
 
-            if (model_name)             
-            { 
-                if(scope[model_name]) // Existing Name
-                    (Array.isArray(scope[model_name])) ? scope[model_name].push(model) : scope[model_name] = [scope[model_name], model];
+    this.insert_model = function(scope, model, key) {
+        /**
+            Add a model to the scope, handling existing models. Repeating models are stored in a list
+           
+            --> scope - The scope containing the models loaded from the API.
+            --> model - The model object to add to the scope.
+            --> key - The scope containing the models loaded from the API. (Optional - set to the 'scope_key' attribute,
+                      the model attribute, or the the default key in settings in that order).
+        **/
+    
+       !key && (key = Renderer.pop_model_key(model));
+    
+       if (key)             
+       { 
+           if(scope[key]) // Existing Name
+               (Array.isArray(scope[key])) ? scope[key].push(model) : scope[key] = [scope[key], model];
 
-                else                   // New Name
-                    scope[model_name] = model;
-            }
-            
-            else                      // Store with Default Key
-                (scope[Fixtures.settings.default_model_scope_key]) ? 
-                    scope[Fixtures.settings.default_model_scope_key].push(model) : 
-                    scope[Fixtures.settings.default_model_scope_key] = [model];
-        });
-    };
+           else                   // New Name
+               scope[key] = model;
+       }
+       
+       else                      // Store with Default Key
+           (scope[Fixtures.settings.default_model_scope_key]) ? 
+               scope[Fixtures.settings.default_model_scope_key].push(model) : 
+               scope[Fixtures.settings.default_model_scope_key] = [model];
+        
+    }
 
-    this.add_to_DOM = function(scope, element, template, models_override) { 
+    this.add_to_DOM = function(scope, element, template, models) { 
         /**
             Final logic used by render_template() to compile the template
             into an HTML element and add it to the DOM.
@@ -1772,15 +1784,15 @@ angular.module('Renderer_Library', []).service('Renderer', ['$compile', function
             --> scope - The scope containing the models loaded from the API.
             --> element - The DOM element to append the template to.
             --> template - The HTML template to add to the DOM (in string form).
-            --> models_override - A list of objects to add to the scope.
+            --> models - A list of objects to add to the scope.
         **/
-       
-        Renderer.splice_models(scope, models_override);
+
+        Renderer.splice_models(scope, models);
         element.append($compile(template)(scope));
         scope.$apply();
     };
 
-    this.pop_model_key = (model) => (Renderer.pop_attr(model, 'scope_key') || Renderer.pop_attr(model, 'model'));
+    this.pop_model_key = (model) => Renderer.pop_attr(model, 'scope_key') || model.model;
         /**
             Remove and return the key to be used to store the model
             in the scope. Uses the 'scope_key' attribute if specified or
@@ -1804,7 +1816,7 @@ angular.module('Renderer_Library', []).service('Renderer', ['$compile', function
 
 
 
-// Library for interacting with the server's API
+// Library for interacting with an API
 angular.module('API_Library', []).service('API', ['$http', function ($http) { 
     this.GET = function({url, params, callback, response_data_path}) {
         /**
@@ -1821,7 +1833,7 @@ angular.module('API_Library', []).service('API', ['$http', function ($http) {
                                      instead of the whole response (e.g. 'model.name' to access the sub-value name 
                                      of the value model in the response).
         **/
-    
+
         $http({ url: (url) ? url : Fixtures.settings.default_api_url, method: "GET",  params: params })
         .then((! response_data_path) ? callback : (response) => API.parse_response(response, response_data_path, callback));
     };

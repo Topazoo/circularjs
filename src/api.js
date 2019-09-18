@@ -1,4 +1,4 @@
-// Library for interacting with the server's API
+// Library for interacting with an API
 angular.module('API_Library', []).service('API', ['$http', function ($http) { 
     this.GET = function({url, params, callback, response_data_path}) {
         /**
@@ -15,7 +15,7 @@ angular.module('API_Library', []).service('API', ['$http', function ($http) {
                                      instead of the whole response (e.g. 'model.name' to access the sub-value name 
                                      of the value model in the response).
         **/
-    
+
         $http({ url: (url) ? url : Fixtures.settings.default_api_url, method: "GET",  params: params })
         .then((! response_data_path) ? callback : (response) => API.parse_response(response, response_data_path, callback));
     };
