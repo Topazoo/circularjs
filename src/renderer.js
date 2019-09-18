@@ -16,27 +16,26 @@ angular.module('Renderer_Library', []).service('Renderer', ['$compile', function
             --> template_override - An HTML template (in string form) to use to render the widget. Used in place of fetching the template from the API. 
                                     Optional (must specify template_name if not used).
         **/
-
+        
         Renderer = this;
         API = Bootstrapper.fetch_module_service('API');
     
-        if(models && models.length > 0) // Since API.GET runs asynchronously, recurse to get all models from the API using API.GET's optional
-            API.GET({                   // callback. 
-                url: models[0].url,
-                params: models[0], 
+        if(models && models.length > 0 && (model = models[0]) && (key = Renderer.pop_model_key(model))) // Since API.GET runs asynchronously, recurse to get all models                                                                     
+            API.GET({                                                                                   // from the API using API.GET's optional callback. 
+                url: Renderer.pop_attr(model, 'url'),
+                params: model, 
                 callback: function(response) {
-                    scope[Renderer.pop_model_key(models[0])] = response; 
+                    scope[key] = response; 
                     Renderer.render_template(scope, element, models.slice(1), template_name, models_override, template_override); 
                 }, 
-                response_data_path: Fixtures.settings.default_models_data_path //TODO - PRefer local rule
+                response_data_path: (model.data_path) ? model.data_path : Fixtures.settings.default_models_data_path 
             });
 
-        // TODO - ADD OVERRIDES FOR URL PER TEMPLATE?
         else if (! template_override) // The final recursive call if loading the template from the API.
             API.GET({                 // Fetches the template after all models are retrieved, compiles them with the template.
                 params: {'model': 'widget', 'filter': `name:${template_name}`},
                 callback: (template) => Renderer.add_to_DOM(scope, element, template, models_override),
-                response_data_path: Fixtures.settings.default_template_data_path
+                response_data_path: (template.data_path) ? template.data_path : Fixtures.settings.default_template_data_path
             });
 
         else                          // The final recursive call if loading the template directly (as a string).
@@ -92,7 +91,7 @@ angular.module('Renderer_Library', []).service('Renderer', ['$compile', function
         scope.$apply();
     };
 
-    this.pop_model_key = function(model) {
+    this.pop_model_key = (model) => (Renderer.pop_attr(model, 'scope_key') || Renderer.pop_attr(model, 'model'));
         /**
             Remove and return the key to be used to store the model
             in the scope. Uses the 'scope_key' attribute if specified or
@@ -102,11 +101,8 @@ angular.module('Renderer_Library', []).service('Renderer', ['$compile', function
             <-- (String || null) - The model name (if it exists).
         **/
 
-        var model_name = (model.scope_key) ? model.scope_key : (model.model) ? model.model : null;  
-        delete model.model && delete model.scope_key;
 
-        return model_name;
-    };
+    this.pop_attr = (object, attr) => { (val = object[attr]); delete object[attr]; return val; };
 }]);
 
 
