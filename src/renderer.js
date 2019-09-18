@@ -1,7 +1,7 @@
 // Library for rendering widgets.
 
 angular.module('Renderer_Library', []).service('Renderer', ['$compile', function ($compile) { 
-    this.render_template = function(scope, element, models, template_name, models_override, template_override) {
+    this.render_template = function(scope, element, name, models, models_override, template_override, template_data_path) {
         /**
             Fetch a template and models from the API. Compile the template with the fetched data and add it to 
             the passed DOM element.
@@ -10,32 +10,33 @@ angular.module('Renderer_Library', []).service('Renderer', ['$compile', function
             --> element - The DOM element to add the template to. Passed from the directive link function.
             --> models - A list of models to compile the template with, in the proper format for GET() (e.g. {'model': 'mymodel'} or 
                         {'model': 'mymodel', 'filter': 'name:model_name'}). Optional.
-            --> template_name - The name of the template to load from the API (excluding the extension).
+            --> name - The name of the template to load from the API (excluding the extension).
             --> models_override - A list of objects to compile the widget with. Optional. *If models is also specified, the models fetched from the API are combined
                                   with the passed models*
             --> template_override - An HTML template (in string form) to use to render the widget. Used in place of fetching the template from the API. 
-                                    Optional (must specify template_name if not used).
+                                    Optional (must specify name if not used).
+            --> template_data_path - A dot-seperated path of keys to access the template value in the API response JSON.
         **/
-        
+
         Renderer = this;
         API = Bootstrapper.fetch_module_service('API');
     
         if(models && models.length > 0 && (model = models[0]) && (key = Renderer.pop_model_key(model))) // Since API.GET runs asynchronously, recurse to get all models                                                                     
             API.GET({                                                                                   // from the API using API.GET's optional callback. 
                 url: Renderer.pop_attr(model, 'url'),
-                params: model, 
+                params: models.shift(), 
                 callback: function(response) {
                     scope[key] = response; 
-                    Renderer.render_template(scope, element, models.slice(1), template_name, models_override, template_override); 
+                    Renderer.render_template(scope, element, name, models, models_override, template_override, template_data_path); 
                 }, 
                 response_data_path: (model.data_path) ? model.data_path : Fixtures.settings.default_models_data_path 
             });
 
         else if (! template_override) // The final recursive call if loading the template from the API.
             API.GET({                 // Fetches the template after all models are retrieved, compiles them with the template.
-                params: {'model': 'widget', 'filter': `name:${template_name}`},
+                params: {'model': 'widget', 'filter': `name:${name}`},
                 callback: (template) => Renderer.add_to_DOM(scope, element, template, models_override),
-                response_data_path: (template.data_path) ? template.data_path : Fixtures.settings.default_template_data_path
+                response_data_path: (template_data_path) ? template_data_path : Fixtures.settings.default_template_data_path
             });
 
         else                          // The final recursive call if loading the template directly (as a string).
@@ -102,7 +103,15 @@ angular.module('Renderer_Library', []).service('Renderer', ['$compile', function
         **/
 
 
-    this.pop_attr = (object, attr) => { (val = object[attr]); delete object[attr]; return val; };
+    this.pop_attr = (object, key) => { (val = object[key]); delete object[key]; return val; };
+        /**
+            Remove a key from an object and retrun it's value.
+            
+            --> object - The object to retrieve and remove the value from.
+            --> key - The key of the object to retreive.
+
+            <-- (any) - The value of the object at the key.
+        **/
 }]);
 
 
