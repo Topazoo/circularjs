@@ -1,5 +1,4 @@
 // Library for loading arbitrary modules, routes and widgets from a specified fixtures file (fixtures.js).
-
 var Bootstrapper =  {
     bootstrap: function() {
         /**
@@ -8,39 +7,41 @@ var Bootstrapper =  {
         **/
 
         angular.element(document).ready(function () { 
+            (! Fixtures.modules) && (Fixtures.modules = []);
             Fixtures.widgets.map(widget => Bootstrapper.register_widget(widget));
-            angular.bootstrap(angular.element(document).find(Fixtures.settings.DOM_attach_point), Array.from(Fixtures.modules));    
+            angular.bootstrap(angular.element(document).find(Fixtures.settings.DOM_attach_point), Fixtures.modules);    
         });
     }(),
 
-    register_widget: function({name, models, directive_template, models_override, template_override, template_data_path}) {
+    register_widget: function({tag, template, models, api_template, api_models, directive_template}) {
         /**
             Register a widget that can be added to the DOM with a custom HTML tag. Widgets should be declared in a fixtures.js
             or by calling this function ( Bootstrapper.register_module() ).
             
             A widget is an HTML template and an optional set of models from the API that is fetched, compiled, and displayed when 
-            specified on the DOM using an HTML tag of the widget's name (e.g. <widget-name></widget-name>).
+            specified on the DOM (e.g. <widget-tag></widget-tag>).
             
-            --> name - The name of the widget template to register. *Becomes an HTML tag that can render the widget on the DOM*
-            --> models - A list of models (with optional filter and sort) to compile the template with, in the proper format for GET() (e.g. {'model': 'mymodel'} or 
+            --> tag - The HTML tag that renders the widget on the DOM
+            --> api_models - A list of models (with optional filter and sort) to compile the template with, in the proper format for GET() (e.g. {'model': 'mymodel'} or 
                         {'model': 'mymodel', 'filter': 'name:model_name'}). Optional.
             --> directive_template - The template to specify in the directive. Optional.
-            --> models_override - A list of objects to compile the widget with. Optional. *If models is also specified, the models fetched from the API are combined
+            --> models - A list of objects to compile the widget with. Optional. *If api_models is also specified, the models fetched from the API are combined
                                     with the passed models*
-            --> template_override - An HTML template (in string form) to use to render the widget. Used in place of fetching the template from the API. 
+            --> template - An HTML template (in string form) to use to render the widget. Used in place of fetching the template from the API. 
                                     Optional (must specify template_name if not used).
-            --> template_data_path - A dot-seperated path of keys to access the template value in the API response JSON.                                    
+            --> api_template - //TODO - DOC
         **/
 
         var Renderer = Bootstrapper.fetch_module_service('Renderer');
 
-        var new_widget_module = angular.module(name, []); // Widget module can be referenced as <<name>>-widget.
+        var new_widget_module = angular.module(tag, []); 
         
-        new_widget_module.directive(name, () => // Link the custom HTML tag to the widget renderer.
+        new_widget_module.directive(tag, () => // Link the custom HTML tag to the widget renderer.
             ({
+                scope: true,
                 restrict: 'E',
                 template: directive_template,
-                link: (scope, element) => Renderer.render_template(scope, element, name, models, models_override, template_override, template_data_path)
+                link: (scope, element) => Renderer.render_template(scope, element, template, models, api_template, api_models)
             })
         );
 
