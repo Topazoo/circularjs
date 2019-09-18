@@ -13,7 +13,7 @@ var Bootstrapper =  {
         });
     }(),
 
-    register_widget: function({name, models, directive_template, models_override, template_override}) {
+    register_widget: function({name, models, directive_template, models_override, template_override, template_data_path}) {
         /**
             Register a widget that can be added to the DOM with a custom HTML tag. Widgets should be declared in a fixtures.js
             or by calling this function ( Bootstrapper.register_module() ).
@@ -29,6 +29,7 @@ var Bootstrapper =  {
                                     with the passed models*
             --> template_override - An HTML template (in string form) to use to render the widget. Used in place of fetching the template from the API. 
                                     Optional (must specify template_name if not used).
+            --> template_data_path - A dot-seperated path of keys to access the template value in the API response JSON.                                    
         **/
 
         var Renderer = Bootstrapper.fetch_module_service('Renderer');
@@ -39,14 +40,14 @@ var Bootstrapper =  {
             ({
                 restrict: 'E',
                 template: directive_template,
-                link: function($scope, element) { Renderer.render_template($scope, element, models, name, models_override, template_override); },
+                link: (scope, element) => Renderer.render_template(scope, element, name, models, models_override, template_override, template_data_path)
             })
         );
 
         this.register_module(new_widget_module.name);
     },
 
-    register_module: function(name, create) {
+    register_module: (name, create) => (Fixtures.modules.push(name) && create) ? angular.module(name, []) : null,
         /**
             Register or create an AngularJS module to use in the application. Modules can be declared in any script included in the DOM but must be 
             registered in fixtures.js or by calling this function ( Bootstrapper.register_module() ) before they can be used.
@@ -54,16 +55,9 @@ var Bootstrapper =  {
             --> name - The name of the module to register.
             --> create - True if the module should be created as it is being registered. False (or null) if the module has
                             already been created.
-
-            <-- AngularJS Module if a model was created. Otherwise null. 
         **/
 
-        Fixtures.modules.push(name);
-
-        return (create) ? angular.module(name, []) : null;
-    },
-
-    fetch_module_service: (service_name, library_name) => 
+    fetch_module_service: (service_name, library_name) => angular.injector(['ng', (library_name) ? library_name : `${service_name}_Library`]).get(service_name)
         /**
             Allow access to the service of a declared AngularJS module without injecting it directly.
 
@@ -72,6 +66,4 @@ var Bootstrapper =  {
 
             <-- AngularJS Module if a model was created. Otherwise null. 
         **/
-
-        angular.injector(['ng', (library_name) ? library_name : `${service_name}_Library`]).get(service_name)
 };
