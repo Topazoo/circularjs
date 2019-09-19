@@ -1,5 +1,5 @@
 // Library for rendering widgets.
-angular.module('Renderer_Library', []).service('Renderer', ['$compile', function ($compile) { 
+angular.module('Renderer_Library', []).service('Renderer', ['$compile', '$timeout', function ($compile, $timeout) { 
     this.render_template = function(scope, element, template, models, api_template, api_models) {
         /**
             Fetch a template and models from the API. Compile the template with the fetched data and add it to 
@@ -98,7 +98,9 @@ angular.module('Renderer_Library', []).service('Renderer', ['$compile', function
 
         Renderer.splice_models(scope, models);
         element.append($compile(template)(scope));
-        scope.$apply();
+        $timeout(function(){
+            scope.$apply();
+        });
     };
 
     this.pop_model_key = (model) => Renderer.pop_attr(model, 'scope_key') || model.model;

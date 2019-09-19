@@ -74,6 +74,7 @@ Templates and data can passed directly, or loaded from one or more arbitrary API
     ```
 
 4. Done!
+\
     <a href="https://imgur.com/J1EmOEK"><img src="https://i.imgur.com/J1EmOEK.png" title="source: imgur.com" /></a>
 
 ## [More Examples](https://github.com/Topazoo/rectangularjs/tree/master/examples/)
