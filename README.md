@@ -17,35 +17,16 @@ Templates and data can passed directly, or loaded from one or more arbitrary API
 1. Include RectangularJS in your HTML
 
     ```HTML
-    <html>
-        <head>
-            <script src="https://cdn.jsdelivr.net/gh/Topazoo/rectangularjs@latest/rectangular-min.js"></script>
-            <script src="fixtures.js"></script>
-        </head>
-        <body>
-            <response></response>
-        </body>
-    </html>
+    <script src="https://cdn.jsdelivr.net/gh/Topazoo/rectangularjs@master/rectangular-min.js"></script>
     ```
 
-2. Create and include an empty fixtures.js file
+2. Create and include a fixtures.js file
 
     ```HTML
-    <html>
-        <head>
-            <script src="https://cdn.jsdelivr.net/gh/Topazoo/rectangularjs@latest/rectangular-min.js"></script>
-            <script src="fixtures.js"></script>
-        </head>
-        <body>
-            <response></response>
-        </body>
-    </html>
+    <script src="fixtures.js"></script>
     ```
 
-3. Specify your templates in fixtures.js ([Example](https://github.com/Topazoo/rectangularjs/tree/master/examples/Internal%20Widget%20with%20External%20Models))
-
     ```JavaScript
-
     var Fixtures = {
         widgets: [
             {
@@ -78,8 +59,21 @@ Templates and data can passed directly, or loaded from one or more arbitrary API
     };
     ```
 
+3. Add your tag(s) to your document
+
+    ```HTML
+    <html>
+        <head>
+            <script src="https://cdn.jsdelivr.net/gh/Topazoo/rectangularjs@master/rectangular-min.js"></script>
+            <script src="fixtures.js"></script>
+        </head>
+        <body>
+            <response></response>
+        </body>
+    </html>
+    ```
+
 4. Done!
-    \
     <a href="https://imgur.com/J1EmOEK"><img src="https://i.imgur.com/J1EmOEK.png" title="source: imgur.com" /></a>
 
 ## [More Examples](https://github.com/Topazoo/rectangularjs/tree/master/examples/)
