@@ -1716,7 +1716,7 @@ angular.module('Renderer_Library', []).service('Renderer', ['$compile', function
                 url: Renderer.pop_attr(model, 'url'),   // from the API using API.GET's optional callback. 
                 params: api_models.shift(), 
                 callback: function(response) {
-                    Renderer.insert_model(scope, response, Renderer.pop_model_key(model)); 
+                    Renderer.insert_model(scope, response, key); 
                     Renderer.render_template(scope, element, template, models, api_template, api_models); 
                 }, 
                 response_data_path: (model.data_path) ? model.data_path : Fixtures.settings.default_model_data_path 
