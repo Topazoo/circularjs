@@ -123,4 +123,17 @@ angular.module('Renderer_Library', []).service('Renderer', ['$compile', '$timeou
 
             <-- (any) - The value of the object at the key.
         **/
-}]);
+
+    this.register_controllers = (module_name) =>
+        /**
+            Force register controllers from bootstrapped modules.
+            
+            --> module_name - The name of the module to load controllers from.
+        **/
+       
+        angular.module(module_name)._invokeQueue.forEach((controller) => 
+            Fixtures._provider.register(controller[2][0], controller[2][1])
+        );
+    
+}])
+.config(($controllerProvider) => Fixtures._provider = $controllerProvider);

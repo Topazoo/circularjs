@@ -5,11 +5,17 @@ var Bootstrapper =  {
                                         *CALLED AUTOMATICALLY*
             Load fixtures from <<STATIC_ROOT>>/js/fixtures.js and register them with AngularJS on page load.
         **/
-
+        
         angular.element(document).ready(function () { 
+            var Renderer = Bootstrapper.fetch_module_service('Renderer');
+            var _modules = Array.from(Fixtures.modules);
+            
             (! Fixtures.modules) && (Fixtures.modules = []);
+
             Fixtures.widgets.map(widget => Bootstrapper.register_widget(widget));
-            angular.bootstrap(angular.element(document).find(Fixtures.settings.DOM_attach_point), Fixtures.modules);    
+
+            angular.bootstrap(angular.element(document).find(Fixtures.settings.DOM_attach_point), Fixtures.modules);
+            _modules.map((module) => Renderer.register_controllers(module));
         });
     }(),
 
@@ -66,5 +72,5 @@ var Bootstrapper =  {
             --> library_name - The name of the module to access. Optional, defaults to <<service_name>>_Library.
 
             <-- AngularJS Module if a model was created. Otherwise null. 
-        **/
+        **/      
 };

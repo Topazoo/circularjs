@@ -1616,6 +1616,9 @@ function ngViewFillContentFactory($compile, $controller, $route) {
 
 })(window, window.angular);
 
+
+
+
 // Library for loading arbitrary modules, routes and widgets from a specified fixtures file (fixtures.js).
 var Bootstrapper =  {
     bootstrap: function() {
@@ -1623,11 +1626,17 @@ var Bootstrapper =  {
                                         *CALLED AUTOMATICALLY*
             Load fixtures from <<STATIC_ROOT>>/js/fixtures.js and register them with AngularJS on page load.
         **/
-
+        
         angular.element(document).ready(function () { 
+            var Renderer = Bootstrapper.fetch_module_service('Renderer');
+            var _modules = Array.from(Fixtures.modules);
+            
             (! Fixtures.modules) && (Fixtures.modules = []);
+
             Fixtures.widgets.map(widget => Bootstrapper.register_widget(widget));
-            angular.bootstrap(angular.element(document).find(Fixtures.settings.DOM_attach_point), Fixtures.modules);    
+
+            angular.bootstrap(angular.element(document).find(Fixtures.settings.DOM_attach_point), Fixtures.modules);
+            _modules.map((module) => Renderer.register_controllers(module));
         });
     }(),
 
@@ -1814,7 +1823,20 @@ angular.module('Renderer_Library', []).service('Renderer', ['$compile', '$timeou
 
             <-- (any) - The value of the object at the key.
         **/
-}]);
+
+    this.register_controllers = (module_name) =>
+        /**
+            Force register controllers from bootstrapped modules.
+            
+            --> module_name - The name of the module to load controllers from.
+        **/
+       
+        angular.module(module_name)._invokeQueue.forEach((controller) => 
+            Fixtures._provider.register(controller[2][0], controller[2][1])
+        );
+    
+}])
+.config(($controllerProvider) => Fixtures._provider = $controllerProvider);
 
 
 
