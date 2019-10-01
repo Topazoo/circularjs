@@ -17,7 +17,7 @@ Templates and data can passed directly, or loaded from one or more arbitrary API
 1. Include RectangularJS in your HTML
 
     ```HTML
-    <script src="https://cdn.jsdelivr.net/gh/Topazoo/rectangularjs@master/rectangular-min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Topazoo/rectangularjs@1.0/rectangular-min.js"></script>
     ```
 
 2. Create and include a fixtures.js file
@@ -64,7 +64,7 @@ Templates and data can passed directly, or loaded from one or more arbitrary API
     ```HTML
     <html>
         <head>
-            <script src="https://cdn.jsdelivr.net/gh/Topazoo/rectangularjs@master/rectangular-min.js"></script>
+            <script src="https://cdn.jsdelivr.net/gh/Topazoo/rectangularjs@1.0/rectangular-min.js"></script>
             <script src="fixtures.js"></script>
         </head>
         <body>
