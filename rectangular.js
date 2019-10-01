@@ -1612,93 +1612,62 @@ function ngViewFillContentFactory($compile, $controller, $route) {
     }
   };
 }
-
-
 })(window, window.angular);
 
-
-
-
-// Library for loading arbitrary modules, routes and widgets from a specified fixtures file (fixtures.js).
-var Bootstrapper =  {
-    bootstrap: function() {
+// Library for interacting with an API
+angular.module('API_Library', []).service('API', ['$http', function ($http) { 
+    this.GET = function({url, params, callback, response_data_path}) {
         /**
-                                        *CALLED AUTOMATICALLY*
-            Load fixtures from <<STATIC_ROOT>>/js/fixtures.js and register them with AngularJS on page load.
-        **/
-        
-        angular.element(document).ready(function () { 
-            var Renderer = Bootstrapper.fetch_module_service('Renderer');
-            var _modules = Array.from(Fixtures.modules);
-            
-            (! Fixtures.modules) && (Fixtures.modules = []);
-
-            Fixtures.widgets.map(widget => Bootstrapper.register_widget(widget));
-
-            angular.bootstrap(angular.element(document).find(Fixtures.settings.DOM_attach_point), Fixtures.modules);
-            _modules.map((module) => Renderer.register_controllers(module));
-        });
-    }(),
-
-    register_widget: function({tag, template, models, api_template, api_models, directive_template}) {
-        /**
-            Register a widget that can be added to the DOM with a custom HTML tag. Widgets should be declared in a fixtures.js
-            or by calling this function ( Bootstrapper.register_module() ).
-            
-            A widget is an HTML template and an optional set of models from the API that is fetched, compiled, and displayed when 
-            specified on the DOM (e.g. <widget-tag></widget-tag>).
-            
-            --> tag - The HTML tag that renders the widget on the DOM
-            --> api_models - A list of models (with optional filter and sort) to compile the template with, in the proper format for GET() (e.g. {'model': 'mymodel'} or 
-                        {'model': 'mymodel', 'filter': 'name:model_name'}). Optional.
-            --> directive_template - The template to specify in the directive. Optional.
-            --> models - A list of objects to compile the widget with. Optional. *If api_models is also specified, the models fetched from the API are combined
-                                    with the passed models*
-            --> template - An HTML template (in string form) to use to render the widget. Used in place of fetching the template from the API. 
-                                    Optional (must specify template_name if not used).
-            --> api_template - //TODO - DOC
+            Simplifies the boilerplate code necessary to send an AngularJS GET request to the server.
+            IMPORTANT: Since requests are asynchronous, function passes the returned response to a
+            callback function when received and DOES NOT return the response.
+           
+            --> $http - The AngularJS HTTP serviced passed from the controller sending the request.
+            --> url - The url to send the GET request to.
+            --> params - A map of parameters to send with the request (e.g. {'model': 'mymodel'}).
+            --> callback - The function to call when a response from the server is received. *The passed
+                           callback function MUST specify a response parameter (e.g. func(response){})*.
+            --> response_data_path - A dot seperated path to specify a partial chunk of the response to send to the callback 
+                                     instead of the whole response (e.g. 'model.name' to access the sub-value name 
+                                     of the value model in the response).
         **/
 
-        var Renderer = Bootstrapper.fetch_module_service('Renderer');
-
-        var new_widget_module = angular.module(tag, []); 
-        
-        new_widget_module.directive(tag, () => // Link the custom HTML tag to the widget renderer.
-            ({
-                scope: true,
-                restrict: 'E',
-                template: directive_template,
-                link: (scope, element) => Renderer.render_template(scope, element, template, models, api_template, api_models)
-            })
-        );
-
-        this.register_module(new_widget_module.name);
-    },
-
-    register_module: (name, create) => (Fixtures.modules.push(name) && create) ? angular.module(name, []) : null,
+        $http({ url: (url) ? url : Fixtures.settings.default_api_url, method: "GET",  params: params })
+        .then((! response_data_path) ? callback : (response) => API.parse_response(response, response_data_path, callback));
+    };
+    
+    this.parse_response = function(response, key, callback) {
         /**
-            Register or create an AngularJS module to use in the application. Modules can be declared in any script included in the DOM but must be 
-            registered in fixtures.js or by calling this function ( Bootstrapper.register_module() ) before they can be used.
-            
-            --> name - The name of the module to register.
-            --> create - True if the module should be created as it is being registered. False (or null) if the module has
-                            already been created.
+            Handles parsing the JSON response for the specified value or sub-value.
+           
+            --> response - The raw JSON response from the server to parse.
+            --> key - A dot seperated path to specify a partial chunk of the response to send to the callback 
+                      (e.g. 'models.0.name' to access the sub-value name of the first model in the response's array of models).
+            --> callback - The function to call with the retreived chunk. *The passed
+                           callback function MUST specify a response parameter (e.g. func(response){})*.
         **/
-
-    fetch_module_service: (service_name, library_name) => angular.injector(['ng', (library_name) ? library_name : `${service_name}_Library`]).get(service_name)
+    
+        key.split('.').forEach((path) => response = (Array.isArray(response[path])) ? API.fix_json_list(response[path]) : response[path]);
+    
+        callback(response);
+    };
+    
+    this.fix_json_list = function(json_list) {
         /**
-            Allow access to the service of a declared AngularJS module without injecting it directly.
-
-            --> service_name - The name of the service to access.
-            --> library_name - The name of the module to access. Optional, defaults to <<service_name>>_Library.
-
-            <-- AngularJS Module if a model was created. Otherwise null. 
+            Fixes nested JSON in lists (if it is in string form). Fixes occur on-demand by either calling function
+            with a list of JSON in string form, or when a parsing a response in parse_response().
+           
+            --> json_list - A list of JSON in string form (e.g. [ "{"key1": "value1"}", "{"key2": "value2"}" ]).
+           
+            <-- List<Object> A list of containing the parsed JSON objects.
         **/
-};
-
-
+    
+        try { return json_list.map(JSON.parse); } catch (e) { return json_list; }
+    };
+}]);
 
 // Library for rendering widgets.
+
 angular.module('Renderer_Library', []).service('Renderer', ['$compile', '$timeout', function ($compile, $timeout) { 
     this.render_template = function(scope, element, template, models, api_template, api_models) {
         /**
@@ -1838,56 +1807,79 @@ angular.module('Renderer_Library', []).service('Renderer', ['$compile', '$timeou
 }])
 .config(($controllerProvider) => Fixtures._provider = $controllerProvider);
 
-
-
-// Library for interacting with an API
-angular.module('API_Library', []).service('API', ['$http', function ($http) { 
-    this.GET = function({url, params, callback, response_data_path}) {
+// Library for loading arbitrary modules, routes and widgets from a specified fixtures file (fixtures.js).
+var Bootstrapper =  {
+    bootstrap: function() {
         /**
-            Simplifies the boilerplate code necessary to send an AngularJS GET request to the server.
-            IMPORTANT: Since requests are asynchronous, function passes the returned response to a
-            callback function when received and DOES NOT return the response.
-           
-            --> $http - The AngularJS HTTP serviced passed from the controller sending the request.
-            --> url - The url to send the GET request to.
-            --> params - A map of parameters to send with the request (e.g. {'model': 'mymodel'}).
-            --> callback - The function to call when a response from the server is received. *The passed
-                           callback function MUST specify a response parameter (e.g. func(response){})*.
-            --> response_data_path - A dot seperated path to specify a partial chunk of the response to send to the callback 
-                                     instead of the whole response (e.g. 'model.name' to access the sub-value name 
-                                     of the value model in the response).
+                                        *CALLED AUTOMATICALLY*
+            Load fixtures from <<STATIC_ROOT>>/js/fixtures.js and register them with AngularJS on page load.
+        **/
+        
+        angular.element(document).ready(function () { 
+            var Renderer = Bootstrapper.fetch_module_service('Renderer');
+            var _modules = Array.from(Fixtures.modules);
+            
+            (! Fixtures.modules) && (Fixtures.modules = []);
+
+            Fixtures.widgets.map(widget => Bootstrapper.register_widget(widget));
+
+            angular.bootstrap(angular.element(document).find(Fixtures.settings.DOM_attach_point), Fixtures.modules, { strictDi: true });
+            _modules.map((module) => Renderer.register_controllers(module));
+        });
+    }(),
+
+    register_widget: function({tag, template, models, api_template, api_models, directive_template}) {
+        /**
+            Register a widget that can be added to the DOM with a custom HTML tag. Widgets should be declared in a fixtures.js
+            or by calling this function ( Bootstrapper.register_module() ).
+            
+            A widget is an HTML template and an optional set of models from the API that is fetched, compiled, and displayed when 
+            specified on the DOM (e.g. <widget-tag></widget-tag>).
+            
+            --> tag - The HTML tag that renders the widget on the DOM
+            --> api_models - A list of models (with optional filter and sort) to compile the template with, in the proper format for GET() (e.g. {'model': 'mymodel'} or 
+                        {'model': 'mymodel', 'filter': 'name:model_name'}). Optional.
+            --> directive_template - The template to specify in the directive. Optional.
+            --> models - A list of objects to compile the widget with. Optional. *If api_models is also specified, the models fetched from the API are combined
+                                    with the passed models*
+            --> template - An HTML template (in string form) to use to render the widget. Used in place of fetching the template from the API. 
+                                    Optional (must specify template_name if not used).
+            --> api_template - //TODO - DOC
         **/
 
-        $http({ url: (url) ? url : Fixtures.settings.default_api_url, method: "GET",  params: params })
-        .then((! response_data_path) ? callback : (response) => API.parse_response(response, response_data_path, callback));
-    };
-    
-    this.parse_response = function(response, key, callback) {
+        var Renderer = Bootstrapper.fetch_module_service('Renderer');
+
+        var new_widget_module = angular.module(tag, []); 
+        
+        new_widget_module.directive(tag, () => // Link the custom HTML tag to the widget renderer.
+            ({
+                scope: true,
+                restrict: 'E',
+                template: directive_template,
+                link: (scope, element) => Renderer.render_template(scope, element, template, models, api_template, api_models)
+            })
+        );
+
+        this.register_module(new_widget_module.name);
+    },
+
+    register_module: (name, create) => (Fixtures.modules.push(name) && create) ? angular.module(name, []) : null,
         /**
-            Handles parsing the JSON response for the specified value or sub-value.
-           
-            --> response - The raw JSON response from the server to parse.
-            --> key - A dot seperated path to specify a partial chunk of the response to send to the callback 
-                      (e.g. 'models.0.name' to access the sub-value name of the first model in the response's array of models).
-            --> callback - The function to call with the retreived chunk. *The passed
-                           callback function MUST specify a response parameter (e.g. func(response){})*.
+            Register or create an AngularJS module to use in the application. Modules can be declared in any script included in the DOM but must be 
+            registered in fixtures.js or by calling this function ( Bootstrapper.register_module() ) before they can be used.
+            
+            --> name - The name of the module to register.
+            --> create - True if the module should be created as it is being registered. False (or null) if the module has
+                            already been created.
         **/
-    
-        key.split('.').forEach((path) => response = (Array.isArray(response[path])) ? API.fix_json_list(response[path]) : response[path]);
-    
-        callback(response);
-    };
-    
-    this.fix_json_list = function(json_list) {
+
+    fetch_module_service: (service_name, library_name) => angular.injector(['ng', (library_name) ? library_name : `${service_name}_Library`]).get(service_name)
         /**
-            Fixes nested JSON in lists (if it is in string form). Fixes occur on-demand by either calling function
-            with a list of JSON in string form, or when a parsing a response in parse_response().
-           
-            --> json_list - A list of JSON in string form (e.g. [ "{"key1": "value1"}", "{"key2": "value2"}" ]).
-           
-            <-- List<Object> A list of containing the parsed JSON objects.
-        **/
-    
-        try { return json_list.map(JSON.parse); } catch (e) { return json_list; }
-    };
-}]);
+            Allow access to the service of a declared AngularJS module without injecting it directly.
+
+            --> service_name - The name of the service to access.
+            --> library_name - The name of the module to access. Optional, defaults to <<service_name>>_Library.
+
+            <-- AngularJS Module if a model was created. Otherwise null. 
+        **/      
+};
