@@ -14,7 +14,7 @@ var Bootstrapper =  {
 
             Fixtures.widgets.map(widget => Bootstrapper.register_widget(widget));
 
-            angular.bootstrap(angular.element(document).find(Fixtures.settings.DOM_attach_point), Fixtures.modules);
+            angular.bootstrap(angular.element(document).find(Fixtures.settings.DOM_attach_point), Fixtures.modules, { strictDi: true });
             _modules.map((module) => Renderer.register_controllers(module));
         });
     }(),

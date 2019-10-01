@@ -1,4 +1,5 @@
 // Library for rendering widgets.
+
 angular.module('Renderer_Library', []).service('Renderer', ['$compile', '$timeout', function ($compile, $timeout) { 
     this.render_template = function(scope, element, template, models, api_template, api_models) {
         /**
